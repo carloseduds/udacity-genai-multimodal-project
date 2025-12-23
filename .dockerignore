@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+.git/
+.gitignore
+
+evals/results/
+tests/__pycache__/
+
+*.log
+.DS_Store
+.env

@@ -1,0 +1,50 @@
+services:
+  phoenix:
+    image: arizephoenix/phoenix:latest
+    ports:
+      - "6006:6006"
+      - "4317:4317"
+    environment:
+      - PHOENIX_PORT=6006
+      - PHOENIX_WORKING_DIR=/mnt/data
+    volumes:
+      - phoenix_data:/mnt/data
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["multimodal-moderation-api"]
+    ports:
+      - "8000:8000"
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - USER_API_KEY=${USER_API_KEY}
+      - DEFAULT_GOOGLE_MODEL=${DEFAULT_GOOGLE_MODEL}
+      - EVAL_JUDGE_MODEL=${EVAL_JUDGE_MODEL}
+      - EVAL_NUM_REPEATS=${EVAL_NUM_REPEATS}
+      - PHOENIX_URL=http://phoenix:6006
+    depends_on:
+      - phoenix
+
+  chat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["multimodal-moderation-chat"]
+    ports:
+      - "7860:7860"
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - USER_API_KEY=${USER_API_KEY}
+      - DEFAULT_GOOGLE_MODEL=${DEFAULT_GOOGLE_MODEL}
+      - EVAL_JUDGE_MODEL=${EVAL_JUDGE_MODEL}
+      - EVAL_NUM_REPEATS=${EVAL_NUM_REPEATS}
+      - API_BASE_URL=http://api:8000
+      - PHOENIX_URL=http://phoenix:6006
+    depends_on:
+      - api
+      - phoenix
+
+volumes:
+  phoenix_data:

@@ -174,3 +174,6 @@ cython_debug/
 .pypirc
 
 workdir/
+
+# Media Uploads
+uploaded_media/
