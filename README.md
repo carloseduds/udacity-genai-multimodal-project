@@ -1,17 +1,30 @@
 # Multimodal Moderation (ACME Enterprise)
 
-An AI-powered **multimodal content moderation system** for customer service interactions (fictional company: **ACME Enterprise**).
+An AI-powered **multimodal content moderation system with observability and analytics**
+for customer service interactions (fictional company: **ACME Enterprise**).
 
-It moderates **text, images, audio, and video** *before* content is forwarded to customers, flagging issues such as:
+The system moderates **text, images, audio, and video** *before* content is forwarded to customers,
+detecting and flagging issues such as:
 - **PII** (personally identifiable information)
-- **Unprofessional / unfriendly tone**
+- **Unprofessional or unfriendly tone**
+- **Hate speech, spam, and misinformation**
 - **Disturbing content**
 - **Low-quality media** (blurry, pixelated, underexposed, etc.)
 
+Beyond content blocking, the system provides **structured moderation results with detailed rationales**,
+enabling analysis, observability, and auditing of moderation behavior.
+
+The project simulates a real-world **customer service training scenario**:
+a trainee support agent interacts with a **simulated customer powered by an LLM**.  
+The customer has purchased an ACME product (*ACME Power Widget Pro*) that stopped working,
+and every message or media sent by the trainee agent is automatically moderated
+to ensure compliance with company standards.
+
 The project includes:
-- A **Gradio Chat UI** (trainee agent ↔ simulated angry customer)
-- A **FastAPI backend** (programmatic moderation endpoints)
+- A **Gradio Chat UI** for interactive training (agent ↔ simulated customer)
+- A **FastAPI backend** exposing programmatic moderation endpoints
 - **Observability via Arize Phoenix** (traces, spans, metadata)
+- A built-in **analytics layer** with aggregated moderation metrics and a visual dashboard
 
 ---
 
@@ -90,7 +103,10 @@ You can run the project in two ways:
 Create a `.env` file from `env.example` and set:
 
 * `GEMINI_API_KEY` (required)
-* `USER_API_KEY` (any string; used as a simple Bearer key for the API)
+* `USER_API_KEY` (required – any string; used as a simple Bearer token for API authentication)
+* `DEFAULT_GOOGLE_MODEL` (optional – default: `gemini-2.5-flash-lite`)
+* `EVAL_JUDGE_MODEL` (optional – default: `gemini-2.5-flash-lite`)
+* `EVAL_NUM_REPEATS` (optional – default: `5`)
 
 ### Linux/macOS
 
@@ -175,6 +191,109 @@ docker compose logs -f phoenix
 ---
 
 ## Using the Application
+
+## Moderation Analytics & Dashboard
+
+The project includes a **built-in analytics layer** that aggregates moderation results and exposes them through both **API endpoints** and a **visual dashboard**.
+
+This allows you to monitor:
+
+* How much content is being moderated
+* How often content is flagged as unsafe
+* Which moderation flags are most frequently triggered
+* The distribution of content types (text, image, audio, video)
+
+### Analytics Architecture
+
+* **In-memory event store** (`InMemoryModerationStore`)
+
+  * Stores recent moderation events
+  * Aggregates counts by flag, decision, and content type
+  * Designed for demo and training purposes
+
+* **FastAPI Analytics Endpoints**
+
+  * Provide aggregated metrics and recent events
+  * Used by the dashboard and available programmatically
+
+* **Gradio Analytics Dashboard**
+
+  * Visualizes metrics with charts and tables
+  * Shares the same UI as the Chat interface (separate tab)
+
+> ⚠️ Note: Analytics are stored in memory. Restarting the API resets the metrics.
+
+---
+
+### Analytics API Endpoints
+
+The following endpoints are available in the FastAPI backend:
+
+* **Summary metrics**
+
+  ```
+  GET /api/v1/analytics/summary
+  ```
+
+  Returns:
+
+  * total number of moderation events
+  * safe vs unsafe counts
+  * safe rate
+  * counts per content type
+  * counts per triggered flag
+
+* **Recent events**
+
+  ```
+  GET /api/v1/analytics/recent?limit=50
+  ```
+
+  Returns:
+
+  * the most recent moderation events
+  * timestamps, content type, decision, flags, model metadata
+
+Authentication:
+
+* Requires `Authorization: Bearer <USER_API_KEY>`
+
+You can explore these endpoints directly via:
+
+* **Swagger UI:** [http://localhost:8000/docs](http://localhost:8000/docs)
+
+---
+
+### Analytics Dashboard (Gradio)
+
+The Gradio UI includes a dedicated **📊 Analytics** tab with:
+
+* **KPIs**
+
+  * Total moderation events
+  * Safe rate
+  * Safe vs unsafe counts
+
+* **Charts**
+
+  * Triggered flags (bar chart)
+  * Events by content type
+  * Safe vs unsafe distribution (pie chart)
+
+* **Table**
+
+  * Recent moderation events with flattened flag columns
+
+To access it:
+
+1. Start the application
+2. Open the Chat UI: [http://localhost:7860](http://localhost:7860)
+3. Navigate to the **📊 Analytics** tab
+4. Click **Refresh** to load the latest metrics
+
+---
+
+## Moderation Aplication
 
 ### 1) Chat UI (Gradio)
 

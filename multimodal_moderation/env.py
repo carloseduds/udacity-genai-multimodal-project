@@ -16,11 +16,10 @@ def _get_required_env(key: str) -> str:
         raise ValueError(f"{key} environment variable is required but not set")
     return value
 
-
 GEMINI_API_KEY: str = _get_required_env("GEMINI_API_KEY")
 USER_API_KEY: str = _get_required_env("USER_API_KEY")
-DEFAULT_GOOGLE_MODEL: str = _get_required_env("DEFAULT_GOOGLE_MODEL")
 
+DEFAULT_GOOGLE_MODEL: str = os.getenv("DEFAULT_GOOGLE_MODEL", "gemini-2.5-flash-lite")
 EVAL_JUDGE_MODEL: str = os.getenv("EVAL_JUDGE_MODEL", DEFAULT_GOOGLE_MODEL)
 EVAL_NUM_REPEATS: int = int(os.getenv("EVAL_NUM_REPEATS", "1"))
 API_BASE_URL: str = os.getenv("API_BASE_URL", "http://localhost:8000")

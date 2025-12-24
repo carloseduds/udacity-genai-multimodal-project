@@ -28,11 +28,11 @@ import requests
 from opentelemetry import trace
 from pydantic_ai.messages import BinaryContent
 
-from multimodal_moderation.agents.customer_agent import customer_agent
+from multimodal_moderation.agents.customer_agent import get_customer_agent
 from multimodal_moderation.env import API_BASE_URL, USER_API_KEY
 from multimodal_moderation.tracing import add_media_to_span, get_tracer, setup_tracing
 from multimodal_moderation.utils import detect_file_type
-
+from multimodal_moderation.analytics_charts import load_analytics
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -53,7 +53,14 @@ MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
 MODERATION_CONFIG = {
     "text": {
         "endpoint": f"{API_BASE_URL}/api/v1/moderate_text",
-        "unsafe_flags": ["is_unfriendly", "is_unprofessional", "contains_pii"],
+        "unsafe_flags": [
+            "is_unfriendly",
+            "is_unprofessional",
+            "contains_pii",
+            "is_hate_speech",
+            "is_spam",
+            "is_misinformation",
+        ],
     },
     "image": {
         "endpoint": f"{API_BASE_URL}/api/v1/moderate_image_file",
@@ -65,7 +72,14 @@ MODERATION_CONFIG = {
     },
     "audio": {
         "endpoint": f"{API_BASE_URL}/api/v1/moderate_audio_file",
-        "unsafe_flags": ["is_unfriendly", "is_unprofessional", "contains_pii"],
+        "unsafe_flags": [
+            "is_unfriendly",
+            "is_unprofessional",
+            "contains_pii",
+            "is_hate_speech",
+            "is_spam",
+            "is_misinformation",
+        ],
     },
 }
 
@@ -188,7 +202,7 @@ def check_content_safety(*, text: str | None = None, media: str | None = None) -
     # Check if any unsafe flags were set by the moderation service
     config = MODERATION_CONFIG[content_type]
     for flag in config["unsafe_flags"]:
-        if result[flag]:
+        if result.get(flag) is True:
             # Content is unsafe - return False with feedback
             return False, f"Content flagged: {feedback}", mime_type
 
@@ -212,7 +226,14 @@ class ChatSessionWithTracing:
             attributes={"session.id": self.session_id},
         )
 
-    async def chat_with_gemini(self, message: dict, history: List, past_messages: List) -> Tuple[str, List, str]:
+    async def chat_with_gemini(
+            self,
+            message: dict,
+            history: List,
+            past_messages: List,
+            persona: str,
+            scenario: str,
+        ) -> Tuple[str, List, str]:
         """
         Process a chat turn: moderate content, then send to AI customer.
 
@@ -307,9 +328,8 @@ class ChatSessionWithTracing:
             # All content passed moderation - send to AI customer
             try:
                 with tracer.start_as_current_span("llm_customer"):
-
-                    # GEMINI CALL: Send prompt to AI agent that plays the customer role
-                    result = await customer_agent.run(
+                    agent = get_customer_agent(persona=persona, scenario=scenario)
+                    result = await agent.run(
                         prompt_parts,
                         message_history=past_messages,
                     )
@@ -353,85 +373,134 @@ def create_chat_interface() -> gr.Blocks:
     chat_session = ChatSessionWithTracing()
 
     with gr.Blocks(title="ACME Customer Service Training Agent", fill_height=True) as demo:
-        # State to hold Pydantic AI's message history (preserves context across turns)
-        past_messages_state = gr.State([])
+        with gr.Tabs():
+            with gr.Tab("💬 Chat"):
+                # State to hold Pydantic AI's message history (preserves context across turns)
+                past_messages_state = gr.State([])
 
-        # Create feedback_display first (with render=False) so we can reference it
-        # in ChatInterface's additional_outputs below, then render it in the sidebar later
-        feedback_display = gr.Textbox(
-            label="💬 Moderation Agent Feedback",
-            placeholder="No feedback yet",
-            interactive=False,
-            visible=True,
-            lines=10,
-            render=False,  # Don't render yet - will render in sidebar
-        )
-
-        # UI Layout
-        gr.Markdown("# 🤖 ACME Customer Service Training Agent")
-        gr.Markdown("Welcome to ACME Corporation's customer service training!")
-
-        with gr.Row():
-            # Left column: Chat interface (75% width)
-            with gr.Column(scale=3):
-
-                gr.ChatInterface(
-                    fn=chat_session.chat_with_gemini,
-                    type="messages",
-                    multimodal=True,
-                    editable=False,
-                    textbox=gr.MultimodalTextbox(
-                        file_count="multiple",
-                        file_types=["image", "video", "audio"],
-                        sources=["upload", "microphone"],
-                        placeholder="Type a message, upload files, or record audio...",
-                    ),
-                    chatbot=gr.Chatbot(
-                        show_copy_button=True,
-                        type="messages",
-                        placeholder="👋 Start by greeting the customer or introducing yourself. The AI customer will respond with their complaint.",
-                        height="75vh",
-                    ),
-                    additional_inputs=[past_messages_state],
-                    additional_outputs=[past_messages_state, feedback_display],
-                )
-
-            # Right column: Feedback and guidelines (25% width)
-            with gr.Column(scale=1):
-                # Render the feedback display at the top of the sidebar
-                feedback_display.render()
-
-                # End conversation button - closes the tracing span
-                end_button = gr.Button("📞 End Conversation", variant="secondary")
-                end_status = gr.Textbox(
-                    label="Status",
+                # Create feedback_display first (with render=False) so we can reference it
+                # in ChatInterface's additional_outputs below, then render it in the sidebar later
+                feedback_display = gr.Textbox(
+                    label="💬 Moderation Agent Feedback",
+                    placeholder="No feedback yet",
                     interactive=False,
-                    visible=False,
+                    visible=True,
+                    lines=10,
+                    render=False,  # Don't render yet - will render in sidebar
                 )
 
-                gr.Markdown("### 📋 Chat Guidelines")
-                gr.Markdown(
-                    """
-                The AI acts as a customer complaining about an ACME product. Try to resolve the customer's issue.
-                You can type messages, upload images/videos, or record audio.
-                """
+                # UI Layout
+                gr.Markdown("# 🤖 ACME Customer Service Training Agent")
+                gr.Markdown("Welcome to ACME Corporation's customer service training!")
+
+                with gr.Row():
+                    # Left column: Chat interface (75% width)
+                    with gr.Column(scale=3):
+                        with gr.Accordion("🎭 Customer Configuration", open=False):
+                            with gr.Row():
+                                persona_dd = gr.Dropdown(
+                                    label="Persona",
+                                    choices=["angry", "anxious", "sarcastic", "calm"],
+                                    value="angry",
+                                    scale=1,
+                                )
+                                scenario_dd = gr.Dropdown(
+                                    label="Scenario",
+                                    choices=["refund", "shipping_delay", "billing_issue"],
+                                    value="refund",
+                                    scale=1,
+                                )
+
+                        gr.ChatInterface(
+                            fn=chat_session.chat_with_gemini,
+                            type="messages",
+                            multimodal=True,
+                            editable=False,
+                            textbox=gr.MultimodalTextbox(
+                                file_count="multiple",
+                                file_types=["image", "video", "audio"],
+                                sources=["upload", "microphone"],
+                                placeholder="Type a message, upload files, or record audio...",
+                            ),
+                            chatbot=gr.Chatbot(
+                                show_copy_button=True,
+                                type="messages",
+                                placeholder="👋 Start by greeting the customer or introducing yourself. The AI customer will respond with their complaint.",
+                                height="60vh",
+                            ),
+                            additional_inputs=[past_messages_state, persona_dd, scenario_dd],
+                            additional_outputs=[past_messages_state, feedback_display],
+                        )
+
+                    # Right column: Feedback and guidelines (25% width)
+                    with gr.Column(scale=1):
+                        # Render the feedback display at the top of the sidebar
+                        feedback_display.render()
+
+                        # End conversation button - closes the tracing span
+                        end_button = gr.Button("📞 End Conversation", variant="secondary")
+                        end_status = gr.Textbox(
+                            label="Status",
+                            interactive=False,
+                            visible=False,
+                        )
+
+                        gr.Markdown("### 📋 Chat Guidelines")
+                        gr.Markdown(
+                            """
+                        The AI acts as a customer complaining about an ACME product. Try to resolve the customer's issue.
+                        You can type messages, upload images/videos, or record audio.
+                        """
+                        )
+
+                        gr.Markdown("### 🔒 Content Moderation")
+                        gr.Markdown(
+                            """
+                        All messages and media are automatically checked for:
+                        - Inappropriate content
+                        - Personally identifiable information
+                        - Unprofessional language
+                        """
+                        )
+
+                # Wire up the end conversation button
+                end_button.click(fn=chat_session.end_conversation, outputs=end_status).then(
+                    lambda: gr.Textbox(visible=True), outputs=end_status
                 )
+                
+            with gr.Tab("📊 Analytics"):
+                gr.Markdown("## 📊 Moderation Analytics")
 
-                gr.Markdown("### 🔒 Content Moderation")
-                gr.Markdown(
-                    """
-                All messages and media are automatically checked for:
-                - Inappropriate content
-                - Personally identifiable information
-                - Unprofessional language
-                """
+                with gr.Row():
+                    total_kpi = gr.Number(label="Total events", interactive=False)
+                    safe_rate_kpi = gr.Number(label="Safe rate", interactive=False)
+                    safe_kpi = gr.Number(label="Safe", interactive=False)
+                    unsafe_kpi = gr.Number(label="Unsafe", interactive=False)
+
+                with gr.Row():
+                    flags_plot = gr.Plot(label="Flags (True)")
+                    types_plot = gr.Plot(label="By type")
+                    decision_plot = gr.Plot(label="Safe vs Unsafe")
+
+                recent_limit = gr.Slider(10, 200, value=50, step=10, label="Recent events (limit)")
+                refresh_btn = gr.Button("🔄 Refresh")
+
+                recent_df = gr.Dataframe(label="Recent events", interactive=False, wrap=True)
+
+                refresh_btn.click(
+                    fn=load_analytics,
+                    inputs=[recent_limit],
+                    outputs=[
+                        total_kpi,
+                        safe_rate_kpi,
+                        safe_kpi,
+                        unsafe_kpi,
+                        flags_plot,
+                        types_plot,
+                        decision_plot,
+                        recent_df,
+                    ],
                 )
-
-        # Wire up the end conversation button
-        end_button.click(fn=chat_session.end_conversation, outputs=end_status).then(
-            lambda: gr.Textbox(visible=True), outputs=end_status
-        )
-
     return demo
 
 

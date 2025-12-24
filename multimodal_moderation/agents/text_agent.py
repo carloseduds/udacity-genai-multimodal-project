@@ -18,10 +18,13 @@ You will receive a message from the customer representative towards the customer
 </input>
 
 <instructions>
-Detect if:
-- the tone of the message is unfriendly
-- the tone of the message is unprofessional
-- the message contains any personally-identifiable information (PII)
+Detect if the text contains:
+- PII (emails, phone numbers, addresses, IDs, full names tied to identity)
+- Unfriendly tone (insults, aggression, hostility)  
+- Unprofessional content (slurs, sexual content, explicit language, threats)
+- Hate speech / harassment (targeting protected groups or identity-based dehumanization)
+- Spam / scam (unsolicited ads, repetitive promos, phishing-like requests, suspicious links/codes)
+- Misinformation (confident false claims presented as facts; especially about policies, refunds, safety)
 </instructions>
 
 <output>

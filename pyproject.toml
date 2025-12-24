@@ -25,6 +25,8 @@ dependencies = [
     "filetype>=1.2.0",
     "arize-phoenix>=12.2.0",
     "openinference-instrumentation-pydantic-ai>=0.1.7",
+    "matplotlib>=3.8.0",
+    "pandas>=2.2.0",
 ]
 
 [project.scripts]

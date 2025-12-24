@@ -18,10 +18,13 @@ is appropriate for a professional customer service setting according to the inst
 
 INSTRUCTIONS
 1. Provide an accurate transcription of the audio content
-2. Detect if:
-   - the audio contains unfriendly tone or content
-   - the audio contains unprofessional tone or content
-   - the audio contains any personally-identifiable information (PII) such as names, addresses, phone numbers
+2. Detect if the audio contains:
+    - PII (emails, phone numbers, addresses, IDs, full names tied to identity)
+    - Unfriendly tone (insults, aggression, hostility)
+    - Unprofessional content (slurs, sexual content, explicit language, threats)
+    - Hate speech / harassment (targeting protected groups or identity-based dehumanization)
+    - Spam / scam (unsolicited ads, repetitive promos, phishing-like requests, suspicious links/codes)
+    - Misinformation (confident false claims presented as facts; especially about policies, refunds, safety)
 
 OUTPUT
 Provide the transcription and a detailed rationale for your moderation choices.
