@@ -110,7 +110,7 @@ Copy-Item env.example .env
 
 ## Option A) Run locally via terminal (uv)
 
-From the `starter/` directory:
+From the root directory:
 
 1. Install dependencies
 
@@ -144,7 +144,7 @@ This mode runs **three containers**: `phoenix`, `api`, and `chat`.
 
 ### Prerequisites
 
-Make sure the following files exist in the root of `starter/`:
+Make sure the following files exist in the root of `/`:
 
 * `Dockerfile`
 * `docker-compose.yml`
@@ -219,7 +219,7 @@ Typical endpoints:
 
 ## Running Evaluations (Evals)
 
-From the project root (`starter/`):
+From the project root (`/`):
 
 ```bash
 uv run evals/text/test_cases.py
