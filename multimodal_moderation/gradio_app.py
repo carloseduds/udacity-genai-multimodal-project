@@ -204,7 +204,7 @@ def check_content_safety(*, text: str | None = None, media: str | None = None) -
     for flag in config["unsafe_flags"]:
         if result.get(flag) is True:
             # Content is unsafe - return False with feedback
-            return False, f"Content flagged: {feedback}", mime_type
+            return False, f"{feedback}", mime_type
 
     # Content is safe - return True with feedback
     return True, feedback, mime_type
@@ -287,6 +287,10 @@ class ChatSessionWithTracing:
                         feedback = f"⚠️ Content flagged: {safety_message}"
                         response = "[This content was flagged by moderation and not sent to the AI. Please try again.]"
 
+                        with tracer.start_as_current_span("feedback", context=trace.set_span_in_context(span)) as feedback_span:
+                            feedback_span.set_attribute("content", feedback)
+                            feedback_span.set_attribute("reason", safety_message)
+
                         span.set_attribute("feedback", feedback)
 
                         return response, past_messages, feedback
@@ -310,6 +314,12 @@ class ChatSessionWithTracing:
                                 response = (
                                     "[This content was flagged by moderation and not sent to the AI. Please try again.]"
                                 )
+
+                                with tracer.start_as_current_span("feedback", context=trace.set_span_in_context(span)) as feedback_span:
+                                    feedback_span.set_attribute("content", feedback)
+                                    feedback_span.set_attribute("reason", safety_message)
+
+                                span.set_attribute("feedback", feedback)
 
                                 return response, past_messages, feedback
 

@@ -79,6 +79,27 @@ class TestTextModerationResult:
         """Verify all fields are required"""
         with pytest.raises(ValidationError, match="contains_pii|is_unfriendly|is_unprofessional"):
             TextModerationResult(rationale="Test")
+            
+    def test_is_flagged_computed(self):
+        """Verify is_flagged computed property works correctly"""
+        result = TextModerationResult(
+            rationale="Test rationale",
+            contains_pii=False,
+            is_unfriendly=False,
+            is_unprofessional=False,
+        )
+        assert result.is_flagged is False
+        assert hasattr(result, "is_flagged")
+        assert isinstance(result.is_flagged, bool)
+
+
+        result2 = TextModerationResult(
+            rationale="Test rationale",
+            contains_pii=True,
+            is_unfriendly=False,
+            is_unprofessional=False,
+        )
+        assert result2.is_flagged is True
 
 
 class TestImageModerationResult:
@@ -122,6 +143,24 @@ class TestImageModerationResult:
         with pytest.raises(ValidationError, match="contains_pii|is_disturbing|is_low_quality"):
             ImageModerationResult(rationale="Test")
 
+    def test_is_flagged_computed(self):
+        result = ImageModerationResult(
+            rationale="Test rationale",
+            contains_pii=False,
+            is_disturbing=False,
+            is_low_quality=False,
+        )
+        assert result.is_flagged is False
+        assert hasattr(result, "is_flagged")
+        assert isinstance(result.is_flagged, bool)
+
+        result2 = ImageModerationResult(
+            rationale="Test rationale",
+            contains_pii=True,
+            is_disturbing=False,
+            is_low_quality=True,
+        )
+        assert result2.is_flagged is True
 
 class TestVideoModerationResult:
     """Test the VideoModerationResult class"""
@@ -164,6 +203,24 @@ class TestVideoModerationResult:
         with pytest.raises(ValidationError, match="contains_pii|is_disturbing|is_low_quality"):
             VideoModerationResult(rationale="Test")
 
+    def test_is_flagged_computed(self):
+        result = VideoModerationResult(
+            rationale="Test rationale",
+            contains_pii=False,
+            is_disturbing=False,
+            is_low_quality=False,
+        )
+        assert result.is_flagged is False
+        assert hasattr(result, "is_flagged")
+        assert isinstance(result.is_flagged, bool)
+
+        result2 = VideoModerationResult(
+            rationale="Test rationale",
+            contains_pii=True,
+            is_disturbing=False,
+            is_low_quality=True,
+        )
+        assert result2.is_flagged is True
 
 class TestAudioModerationResult:
     """Test the AudioModerationResult class"""
@@ -207,5 +264,27 @@ class TestAudioModerationResult:
 
     def test_all_fields_are_required(self):
         """Verify all fields are required"""
-        with pytest.raises(ValidationError, match="transcription|contains_pii|is_unfriendly|is_unprofessional"):
+        with pytest.raises(ValidationError, match="contains_pii|is_unfriendly|is_unprofessional"):
             AudioModerationResult(rationale="Test", transcription="Test")
+
+    def test_is_flagged_computed(self):
+        result = AudioModerationResult(
+            rationale="Test rationale",
+            transcription="Test transcription",
+            contains_pii=False,
+            is_unfriendly=False,
+            is_unprofessional=False,
+        )
+        assert result.is_flagged is False
+        assert hasattr(result, "is_flagged")
+        assert isinstance(result.is_flagged, bool)
+
+        result2 = AudioModerationResult(
+            rationale="Test rationale",
+            transcription="Test transcription",
+            contains_pii=True,
+            is_unfriendly=False,
+            is_unprofessional=True,
+        )
+        assert result2.is_flagged is True
+
